@@ -1,0 +1,375 @@
+══════════════════════════════════════════════════════════════════════
+    SUPPLY CHAIN MAPPING - QUICK START CHEATSHEET
+══════════════════════════════════════════════════════════════════════
+
+📍 PROJECT LOCATION
+─────────────────────────────────────────────────────────────────────
+Windows: C:\Users\jalex\supply-chain\supply-chain-mapping
+Mac/Linux: ~/supply-chain/supply-chain-mapping
+
+Tariff Library: C:\Users\jalex\supply-chain\tariff_library
+
+══════════════════════════════════════════════════════════════════════
+
+⚡ QUICK START COMMANDS
+─────────────────────────────────────────────────────────────────────
+
+Navigate to project:
+  cd C:\Users\jalex\supply-chain\supply-chain-mapping
+
+Check status:
+  python orchestrator.py --api-key YOUR_KEY status
+
+Run daily update:
+  python orchestrator.py --api-key YOUR_KEY daily
+
+Run weekly update:
+  python orchestrator.py --api-key YOUR_KEY weekly
+
+Run monthly update:
+  python orchestrator.py --api-key YOUR_KEY monthly
+
+View review queue:
+  python orchestrator.py --api-key YOUR_KEY review
+
+══════════════════════════════════════════════════════════════════════
+
+🖱️ EVEN EASIER - DOUBLE-CLICK!
+─────────────────────────────────────────────────────────────────────
+
+Windows: Double-click run_daily_update.bat
+Mac:     Double-click run_daily_update.sh
+
+(After one-time setup - see EASY_DOUBLE_CLICK_GUIDE.md)
+
+══════════════════════════════════════════════════════════════════════
+
+🔧 SETUP COMMANDS (One-Time)
+─────────────────────────────────────────────────────────────────────
+
+Install Claude library:
+  pip install anthropic
+
+Create database:
+  python create_database.py
+
+Test setup:
+  python getting_started_simple.py YOUR_API_KEY
+
+Test configuration:
+  python config.py
+
+══════════════════════════════════════════════════════════════════════
+
+🤖 RUNNING INDIVIDUAL AGENTS
+─────────────────────────────────────────────────────────────────────
+
+Terminal discovery:
+  python terminal_discovery_agent.py YOUR_API_KEY
+
+(More agents coming: excel_import, pipeline_tariff, rail_rate, etc.)
+
+══════════════════════════════════════════════════════════════════════
+
+💾 DATABASE QUERIES
+─────────────────────────────────────────────────────────────────────
+
+Open database:
+  sqlite3 supply_chain.db
+
+Useful queries (inside sqlite3):
+
+  View active terminals:
+    SELECT * FROM v_active_terminals;
+
+  Count terminals:
+    SELECT COUNT(*) FROM terminals;
+
+  Count by state:
+    SELECT state, COUNT(*) FROM terminals GROUP BY state;
+
+  View review queue:
+    SELECT * FROM v_review_queue;
+
+  Recent tasks:
+    SELECT * FROM agent_tasks ORDER BY created_at DESC LIMIT 10;
+
+  Exit:
+    .quit
+
+══════════════════════════════════════════════════════════════════════
+
+📊 STATUS CHECK
+─────────────────────────────────────────────────────────────────────
+
+Quick overview:
+  python orchestrator.py --api-key YOUR_KEY status
+
+Shows:
+  • Number of terminals, pipelines, tariffs
+  • Tasks completed/pending
+  • Automation rate
+  • Items needing review
+  • Last update time
+
+══════════════════════════════════════════════════════════════════════
+
+🗂️ KEY FILES
+─────────────────────────────────────────────────────────────────────
+
+CODE:
+  config.py                    - All settings & paths
+  orchestrator.py              - Main coordinator
+  terminal_discovery_agent.py  - First agent (working)
+  create_database.py           - Database setup
+
+SCRIPTS:
+  run_daily_update.bat         - Windows easy-run
+  run_daily_update.sh          - Mac/Linux easy-run
+  getting_started_simple.py    - Quick test
+
+DATA:
+  supply_chain.db              - Your database (BACK THIS UP!)
+
+DOCS:
+  README.md                    - Start here
+  PROJECT_STATE.md             - Current status (update often!)
+  DEVELOPMENT_GUIDE.md         - How-to reference
+  BEGINNERS_GUIDE.md           - Non-technical guide
+
+══════════════════════════════════════════════════════════════════════
+
+⏱️ TYPICAL SCHEDULE
+─────────────────────────────────────────────────────────────────────
+
+DAILY (2-3 minutes):
+  • Run daily update (double-click or command)
+  • Note any warnings
+  • Check for flagged items
+
+WEEKLY (1-2 hours):
+  • Run weekly update
+  • Review flagged items
+  • Accept/correct/reject data
+  • Update PROJECT_STATE.md
+
+MONTHLY (2-3 hours):
+  • Run monthly update
+  • Check performance metrics
+  • Backup database
+  • Update documentation
+
+══════════════════════════════════════════════════════════════════════
+
+🆘 TROUBLESHOOTING QUICK FIXES
+─────────────────────────────────────────────────────────────────────
+
+"Python is not recognized"
+  → Reinstall Python, check "Add Python to PATH"
+
+"No module named 'anthropic'"
+  → pip install anthropic
+
+"API key invalid"
+  → Check key starts with sk-ant-api03-, no spaces
+
+"Database is locked"
+  → Close DB Browser, close other programs using DB
+
+"Can't find config module"
+  → cd to project directory first
+
+"Permission denied" (Mac)
+  → chmod +x run_daily_update.sh
+
+══════════════════════════════════════════════════════════════════════
+
+💰 COSTS (Approximate)
+─────────────────────────────────────────────────────────────────────
+
+Setup:           $5-10 (one-time API testing)
+Daily update:    $0.30-0.50 per day
+Weekly update:   $1.50-3.00 per week
+Monthly update:  $10-20 per month
+────────────────────────────────────────────────────
+TOTAL:           ~$300-500 per month ($4-6K/year)
+
+vs. Manual:      $80-120K/year for FTE
+
+SAVINGS:         $70-110K per year! 💰
+
+══════════════════════════════════════════════════════════════════════
+
+🎯 SUCCESS METRICS - TARGETS
+─────────────────────────────────────────────────────────────────────
+
+Automation Rate:     85-90% (tasks without human review)
+Data Quality:        95%+ (completeness + accuracy)
+Coverage:            400+ terminals (target)
+Human Review Time:   <15 hours/week
+Update Latency:      <24 hours (source → database)
+
+══════════════════════════════════════════════════════════════════════
+
+🔑 IMPORTANT PATHS (from config.py)
+─────────────────────────────────────────────────────────────────────
+
+To use in code:
+  import config
+
+  config.DATABASE_PATH          - supply_chain.db location
+  config.TARIFF_LIBRARY         - Full PDF collection
+  config.PIPELINE_TARIFFS       - Pipeline subfolder
+  config.RAIL_TARIFFS          - Railroad subfolder
+  config.TERMINAL_TARIFFS      - Terminal subfolder
+  config.SAMPLE_TARIFFS        - Sample PDFs for testing
+  config.CLAUDE_MODEL          - "claude-sonnet-4-20250514"
+  config.MIN_CONFIDENCE_SCORE  - 0.7
+  config.HIGH_CONFIDENCE_SCORE - 0.9
+
+══════════════════════════════════════════════════════════════════════
+
+📚 DOCUMENTATION GUIDE
+─────────────────────────────────────────────────────────────────────
+
+I'm new:                 BEGINNERS_GUIDE.md
+I want it simple:        EASY_DOUBLE_CLICK_GUIDE.md
+I need quick ref:        This file!
+I'm coding:              DEVELOPMENT_GUIDE.md
+I want overview:         README.md
+Where am I?:             PROJECT_STATE.md
+Deep architecture:       agent_driven_framework.md
+Long-term planning:      HOW_TO_PRESERVE_AND_ITERATE.md
+Working with Claude:     NEW_SESSION_TEMPLATE.md
+
+══════════════════════════════════════════════════════════════════════
+
+🔄 GIT WORKFLOW
+─────────────────────────────────────────────────────────────────────
+
+Check status:
+  Open GitHub Desktop (shows changed files automatically)
+
+Commit changes:
+  1. Add summary message
+  2. Click "Commit to main"
+  3. Click "Push origin"
+
+View online:
+  Repository → View on GitHub
+
+══════════════════════════════════════════════════════════════════════
+
+📞 GETTING HELP
+─────────────────────────────────────────────────────────────────────
+
+Setup questions:     BEGINNERS_GUIDE.md → troubleshooting
+Technical issues:    DEVELOPMENT_GUIDE.md → troubleshooting
+Understanding data:  README.md → database section
+Current status:      PROJECT_STATE.md
+
+Ask Claude AI:
+  1. Go to claude.ai
+  2. Upload PROJECT_STATE.md + DEVELOPMENT_GUIDE.md
+  3. Describe your problem
+  4. Get help with full project context!
+
+══════════════════════════════════════════════════════════════════════
+
+✅ DAILY WORKFLOW EXAMPLE
+─────────────────────────────────────────────────────────────────────
+
+Morning routine (3 minutes):
+
+  1. Double-click run_daily_update.bat
+     (or run command if you prefer)
+
+  2. Watch it run (1-2 minutes)
+     ✓ New tariffs checked
+     ✓ Ownership changes monitored  
+     ✓ Quality checks run
+
+  3. Note results
+     • 0 items needing review? Perfect! ✓
+     • Items flagged? Add to review list 📋
+
+  4. Done!
+
+Weekly (1-2 hours):
+  → Review flagged items
+  → Update documentation
+  → Check metrics
+
+══════════════════════════════════════════════════════════════════════
+
+🎊 QUICK WINS - YOUR FIRST WEEK
+─────────────────────────────────────────────────────────────────────
+
+Day 1: ✓ Complete setup
+Day 2: ✓ Run first daily update
+Day 3: ✓ Check status, see your data
+Day 4: ✓ Set up double-click scripts
+Day 5: ✓ Review any flagged items
+Day 6: ✓ Import Excel data (200+ terminals)
+Day 7: ✓ Celebrate! You're automating supply chain mapping! 🎉
+
+══════════════════════════════════════════════════════════════════════
+
+🔐 BACKUP CHECKLIST
+─────────────────────────────────────────────────────────────────────
+
+Weekly:
+  ☐ Copy supply_chain.db to external drive
+
+Monthly:
+  ☐ Copy tariff_library folder
+  ☐ Verify GitHub backup is current
+  ☐ Test restore from backup
+
+Set calendar reminder for 1st of each month!
+
+══════════════════════════════════════════════════════════════════════
+
+💡 PRO TIPS
+─────────────────────────────────────────────────────────────────────
+
+✓ Run daily updates at same time each day (builds habit)
+✓ Review flagged items same day (prevents backlog)
+✓ Update PROJECT_STATE.md weekly (tracks progress)
+✓ Keep this cheatsheet visible (print and post it!)
+✓ Use double-click scripts (saves time)
+✓ Backup database monthly (prevents data loss)
+✓ Read error messages (they tell you what's wrong)
+✓ Ask Claude for help (upload PROJECT_STATE.md)
+
+══════════════════════════════════════════════════════════════════════
+
+📈 CURRENT STATUS (Update This Section!)
+─────────────────────────────────────────────────────────────────────
+
+Last Updated: _______________
+
+Terminals in DB:        _______
+Pipelines in DB:        _______
+Tariffs in DB:          _______
+Automation Rate:        _______%
+Items Needing Review:   _______
+Last Successful Run:    _______________
+
+══════════════════════════════════════════════════════════════════════
+
+🚀 REMEMBER
+─────────────────────────────────────────────────────────────────────
+
+You're automating what used to take 65 hours/week!
+
+Your time commitment: 10-15 hours/week
+AI does the rest: 50+ hours/week
+Savings: $70-110K per year
+
+That's incredible! Keep going! 🎉
+
+══════════════════════════════════════════════════════════════════════
+
+Last updated: February 10, 2026
+Print this page and keep it handy! 📄
