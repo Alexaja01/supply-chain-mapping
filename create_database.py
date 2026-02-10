@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Complete Database Setup - Creates ALL 15 tables and 3 views
-Run this once to set up your database properly
+Complete Database Setup - Creates ALL 16 tables and 3 views
+Updated to include transportation_costs table for costing methodology
 """
 
 import sqlite3
@@ -29,10 +29,13 @@ def create_complete_database(db_path='supply_chain.db'):
     CREATE TABLE IF NOT EXISTS terminals (
         terminal_id TEXT PRIMARY KEY,
         terminal_name TEXT NOT NULL,
+        terminal_code TEXT,
         irs_tcn TEXT UNIQUE,
         state TEXT,
         city TEXT,
         county TEXT,
+        market TEXT,
+        region TEXT,
         latitude REAL,
         longitude REAL,
         operator TEXT,
@@ -143,6 +146,8 @@ def create_complete_database(db_path='supply_chain.db'):
         connection_type TEXT,
         direction TEXT,
         capacity_bpd INTEGER,
+        is_published BOOLEAN DEFAULT 0,
+        is_included BOOLEAN DEFAULT 1,
         effective_date DATE,
         end_date DATE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -170,7 +175,7 @@ def create_complete_database(db_path='supply_chain.db'):
     print("  ✓ Created table: pipeline_refinery_links")
     
     # ========================================================================
-    # COSTING TABLES (3)
+    # COSTING TABLES (4) - UPDATED WITH TRANSPORTATION_COSTS
     # ========================================================================
     
     print("\nCreating costing tables...")
@@ -180,6 +185,7 @@ def create_complete_database(db_path='supply_chain.db'):
     CREATE TABLE IF NOT EXISTS pipeline_tariffs (
         tariff_id TEXT PRIMARY KEY,
         pipeline_id TEXT,
+        pipeline_name TEXT,
         origin TEXT NOT NULL,
         destination TEXT NOT NULL,
         origin_county TEXT,
@@ -187,6 +193,8 @@ def create_complete_database(db_path='supply_chain.db'):
         product_type TEXT,
         rate_per_gallon REAL,
         rate_basis TEXT,
+        miles INTEGER,
+        tariff_library_name TEXT,
         effective_date DATE,
         end_date DATE,
         source_document TEXT,
@@ -199,15 +207,16 @@ def create_complete_database(db_path='supply_chain.db'):
     """)
     print("  ✓ Created table: pipeline_tariffs")
     
-    # 9. Terminal Rates
+    # 9. Terminal Rates (Facilities & Throughput Charges)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS terminal_rates (
         rate_id TEXT PRIMARY KEY,
         terminal_id TEXT,
         product_type TEXT,
-        throughput_rate REAL,
         facilities_charge REAL,
-        storage_rate REAL,
+        throughput_rate REAL,
+        terminaling_estimate REAL,
+        additive REAL,
         rate_basis TEXT,
         effective_date DATE,
         end_date DATE,
@@ -220,7 +229,33 @@ def create_complete_database(db_path='supply_chain.db'):
     """)
     print("  ✓ Created table: terminal_rates")
     
-    # 10. Rail Rates
+    # 10. Transportation Costs (NEW - For Costing Methodology)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS transportation_costs (
+        transport_cost_id TEXT PRIMARY KEY,
+        terminal_id TEXT,
+        product_type TEXT,
+        tariff_cost REAL,
+        tvm_cost REAL,
+        basis_cost REAL,
+        fuel_surcharge REAL,
+        transload_cost REAL,
+        truck_freight REAL,
+        line_loss REAL,
+        margin REAL,
+        transportation_estimate REAL,
+        combined_adder REAL,
+        effective_date DATE,
+        end_date DATE,
+        created_by TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (terminal_id) REFERENCES terminals(terminal_id)
+    )
+    """)
+    print("  ✓ Created table: transportation_costs (NEW)")
+    
+    # 11. Rail Rates
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS rail_rates (
         rate_id TEXT PRIMARY KEY,
@@ -247,7 +282,7 @@ def create_complete_database(db_path='supply_chain.db'):
     
     print("\nCreating management tables...")
     
-    # 11. Agent Tasks
+    # 12. Agent Tasks
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS agent_tasks (
         task_id TEXT PRIMARY KEY,
@@ -271,7 +306,7 @@ def create_complete_database(db_path='supply_chain.db'):
     """)
     print("  ✓ Created table: agent_tasks")
     
-    # 12. Data Quality Log
+    # 13. Data Quality Log
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS data_quality_log (
         log_id TEXT PRIMARY KEY,
@@ -286,7 +321,7 @@ def create_complete_database(db_path='supply_chain.db'):
     """)
     print("  ✓ Created table: data_quality_log")
     
-    # 13. Agent Metrics
+    # 14. Agent Metrics
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS agent_metrics (
         metric_id TEXT PRIMARY KEY,
@@ -303,7 +338,7 @@ def create_complete_database(db_path='supply_chain.db'):
     """)
     print("  ✓ Created table: agent_metrics")
     
-    # 14. Ownership Changes
+    # 15. Ownership Changes
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS ownership_changes (
         change_id TEXT PRIMARY KEY,
@@ -320,7 +355,7 @@ def create_complete_database(db_path='supply_chain.db'):
     """)
     print("  ✓ Created table: ownership_changes")
     
-    # 15. Source Documents
+    # 16. Source Documents
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS source_documents (
         document_id TEXT PRIMARY KEY,
@@ -328,6 +363,8 @@ def create_complete_database(db_path='supply_chain.db'):
         document_name TEXT,
         document_url TEXT,
         local_path TEXT,
+        location_aliases TEXT,
+        rate_examples TEXT,
         effective_date DATE,
         retrieved_date DATE,
         hash_checksum TEXT,
@@ -344,9 +381,11 @@ def create_complete_database(db_path='supply_chain.db'):
     
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_terminals_state ON terminals(state)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_terminals_tcn ON terminals(irs_tcn)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_terminals_code ON terminals(terminal_code)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_status ON agent_tasks(status)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_tasks_agent_type ON agent_tasks(agent_type)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_tariffs_pipeline ON pipeline_tariffs(pipeline_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_transport_costs_terminal ON transportation_costs(terminal_id)")
     print("  ✓ Created indexes")
     
     # ========================================================================
@@ -395,11 +434,12 @@ def create_complete_database(db_path='supply_chain.db'):
     print("\n" + "=" * 60)
     print("✅ Complete database created successfully!")
     print("\nDatabase: supply_chain.db")
-    print("\nTables created (15):")
+    print("\nTables created (16):")
     print("  Asset Tables: terminals, pipelines, rail_connections,")
     print("                marine_facilities, refineries")
     print("  Linkage: terminal_pipeline_links, pipeline_refinery_links")
-    print("  Costing: pipeline_tariffs, terminal_rates, rail_rates")
+    print("  Costing: pipeline_tariffs, terminal_rates, rail_rates,")
+    print("           transportation_costs (NEW)")
     print("  Management: agent_tasks, data_quality_log, agent_metrics,")
     print("              ownership_changes, source_documents")
     print("\nViews created (3):")
@@ -411,7 +451,7 @@ def create_complete_database(db_path='supply_chain.db'):
 if __name__ == "__main__":
     print("\n" + "="*80)
     print("  CREATING COMPLETE SUPPLY CHAIN DATABASE")
-    print("  All 15 Tables + 3 Views")
+    print("  All 16 Tables + 3 Views (Including Transportation Costs)")
     print("="*80)
     
     conn = create_complete_database('supply_chain.db')
@@ -419,7 +459,7 @@ if __name__ == "__main__":
     
     print("\n✅ Database setup complete!")
     print("\nNext steps:")
-    print("  1. Run daily update: python orchestrator.py --api-key YOUR_KEY daily")
+    print("  1. Run Excel import: python excel_import_agent.py")
     print("  2. Check status: python orchestrator.py --api-key YOUR_KEY status")
-    print("  3. Import data or run terminal discovery agent")
+    print("  3. View data in DB Browser for SQLite")
     print("\n" + "="*80 + "\n")
