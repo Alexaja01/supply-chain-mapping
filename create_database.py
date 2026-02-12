@@ -1,4 +1,3 @@
-C:\users\jalex\appdata\roaming\claude\local agent mode sessions\858510ab c23b 42a8 a42f 002840c47728\3d9c0f35 6441 47e2 a04e 6d92621bfc51\local 693dc6cf 7c3c 4cf1 a13c d6b38f96f328\outputs\create database · PY
 #!/usr/bin/env python3
 """
 Complete Database Setup - Supply Chain Mapping System
@@ -1359,4 +1358,3 @@ if __name__ == "__main__":
     print("    2. Check status:       python orchestrator.py --api-key YOUR_KEY status")
     print("    3. View data:          Open supply_chain.db in DB Browser for SQLite")
     print("\n" + "=" * 80 + "\n")
-
