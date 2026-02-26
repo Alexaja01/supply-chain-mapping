@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \"import ast, sys; ast.parse\\(open\\(''terminal_capture_agent.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''terminal_capture_agent.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(python -c \"import pandas; print\\(''pandas OK'', pandas.__version__\\)\")",
+      "Bash(pip install pandas openpyxl -q)",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\(''C:/Users/jalex/supply-chain/supply-chain-mapping/terminal_capture_agent.py''\\).read\\(\\)\\); print\\(''Syntax OK''\\)\")",
+      "Bash(test -f \"C:/Users/jalex/supply-chain/supply-chain-mapping/supply_chain.db\")",
+      "Bash(python terminal_capture_agent.py sk-ant-dummy)"
+    ]
+  }
+}

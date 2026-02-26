@@ -2,8 +2,8 @@
 
 **Last Updated:** February 26, 2026  
 **Project Owner:** jalex  
-**Current Phase:** Asset Agent Build — Claude Code Integration  
-**Session Progress:** Claude Code architecture designed; ready to begin asset agent pipeline build
+**Current Phase:** Asset Agent Build — Capture Complete, Validation Next  
+**Session Progress:** Session 3 complete — 1,332 IRS terminals staged, ready for Session 4 (validation agent)
 
 ---
 
@@ -82,65 +82,58 @@ Every repeatable procedure becomes a SKILL.md. Initial skills to create:
 
 ## 💾 DATABASE STATUS
 
-### Current Schema (52 Tables - per create_database.py)
+### Current Schema (54 Tables)
 
-**NOTE:** PROJECT_STATE.md previously stated 16 tables — this was stale. The actual schema created by `create_database.py` contains ~52 tables across 11 groups. Componentized costing infrastructure (costing_items, line_item_types, tariff_costs, etc.) **already exists at the schema level** but is not yet populated with component-level data. The migration work is a data population task, not a schema creation task.
+**NOTE:** Schema was rebuilt February 26 with full componentized costing infrastructure. The old 16-table description is retired.
 
-**Table Groups (52 total):**
-1. **Master Data (8):** product_categories, products, terminals, terminal_products, pipelines, refineries, rail_connections, marine_facilities
-2. **Configuration (4):** line_item_types, costing_items, shipping_setup, price_days
-3. **Linkage (5):** terminal_pipeline_links, pipeline_refinery_links, shipping_paths, terminal_path_links, tariff_path_links
-4. **Costing (7):** pipeline_tariffs, tariff_libraries, tariff_costs, terminal_rates, transportation_costs, rail_rates, costing
-5. **Shipping (2):** shipping_periods, shipping_line_items
-6. **Spot Market (3):** spot_markets, index_components, spot_indices
-7. **BCS / Buying Cost Sheets (5):** bcs_types, bcs_period_statuses, bcs, bcs_periods, bcs_line_items
-8. **Alias / Multi-Tenant (7):** alias_types, terminal_aliases, product_aliases, line_item_type_aliases, index_aliases, price_day_aliases, (+ 1 TBD)
-9. **Management (5):** agent_tasks, data_quality_log, agent_metrics, ownership_changes, source_documents
-10. **Alias Error Tracking (5):** terminal_alias_errors, product_alias_errors, line_item_type_alias_errors, index_alias_errors, price_day_alias_errors
-11. **ETL Tracking (2):** batches, shipping_tracking
+**Table Groups (54 total):**
+- Master Data (8), Configuration (4), Linkage (5), Costing (7), Shipping (2)
+- Spot Market (4), BCS (5), Alias/Multi-Tenant (6), Management (5)
+- Alias Error Tracking (5), ETL Tracking (2), Asset Capture Staging (1)
 
-**5+ Views:** v_active_terminals, v_active_pipeline_tariffs, v_review_queue, v_costing_detail, v_bcs_detail
+**6 Views:** v_active_terminals, v_active_pipeline_tariffs, v_review_queue, v_terminal_products, v_active_shipping, v_bcs_detail
 
 ### Current Data
-- **Terminals: 227** ✅ (snapshot as of 2024-01-01)
-- **Transportation Costs: 681** ✅ (227 × 3 products - combined adders only)
-- Pipelines: 0
-- Tariffs: 0
+- **Terminals: 0** — fresh database, old 227 not migrated (by design)
+- **terminal_capture_staging: 1,332** ✅ IRS TCN Directory captured 2/26/2026
+- **Transportation Costs: 0** — componentized population pending
+- Pipelines: 0 | Tariffs: 0
+
+### Staging Table Status
+- **Capture source:** IRS_510
+- **Records:** 1,332
+- **Status:** all pending (awaiting validation agent)
+- **Confidence scores:** 0.70 across the board
+- **Root cause of 0.70:** TCN pattern mismatch (-0.20) + missing operator field (-0.10)
+- **TCN format confirmed:** XX-ST-XXXX (e.g. `04-MA-1151`, `02-NH-1056`)
+- **config.TCN_PATTERN needs update:** change to `^\d{2}-[A-Z]{2}-\d{4}$` in Session 4
 
 ---
 
 ## ⚡ IMMEDIATE NEXT STEPS
 
-**Priority 0: Claude Code — Install & First Session**
-- [ ] Install: `npm install -g @anthropic-ai/claude-code`
-- [ ] Open terminal in `C:\Users\jalex\supply-chain\supply-chain-mapping`
-- [ ] Opening prompt: load PROJECT_STATE.md, config.py, create_database.py, terminal_discovery_agent.py
-- [ ] First task: build `terminal_capture_agent.py` using IRS 510 as first source
-- [ ] **Design constraints for Claude Code (do not deviate without approval):**
-  - New asset agents write to `terminal_capture_staging` — NOT directly to `terminals`
-  - All new agents use `uuid.uuid4()` for primary keys (not the legacy `ST####` pattern)
-  - Add `web_search` tool explicitly to any Claude API calls needing live data
-  - Propose schema changes before implementing — wait for approval
-  - Leverage existing schema tables before adding new ones
+**Priority 1: Session 4 — terminal_validate_agent.py (Claude Code)**
+- [ ] Fix config.TCN_PATTERN: update to `^\d{2}-[A-Z]{2}-\d{4}$`
+- [ ] Build validation agent that reads from terminal_capture_staging
+- [ ] Promote high-confidence records (>= 0.85) to terminals table
+- [ ] Flag low-confidence records for human review
+- [ ] Handle operator field — IRS file doesn't include it, need enrichment source
 
-**Priority 1: Asset Agent Pipeline (Claude Code build)**
-- [ ] `terminal_capture_agent.py` — Stage 1: IRS 510 capture → staging table
-- [ ] `terminal_validate_agent.py` — Stage 2: conflict detection, geocoding, confidence scoring
-- [ ] `terminal_enrich_agent.py` — Stage 3: web enrichment, aliases, EPA RMP, EIA data
+**Priority 2: Session 5 — terminal_enrich_agent.py (Claude Code)**
+- [ ] EIA terminal database cross-reference
+- [ ] Operator/owner enrichment
+- [ ] Geocoding (lat/lon) via Nominatim
+- [ ] EPA RMP cross-reference for hazmat facilities
 
-**Priority 2: Create first two Skills**
+**Priority 3: Create first two Skills (Claude.ai — not Claude Code)**
 - [ ] `/skills/Tariff_Extraction/SKILL.md`
 - [ ] `/skills/PADD3_Costing/SKILL.md`
+- [ ] Upload Costings_Process_and_Road_Map.docx to SC-PADD3 POC project first
 
-**Priority 3: Define Colonial GC→ATL corridor completeness checklist**
-- [ ] Asset list for corridor
-- [ ] Connectivity requirements
-- [ ] Costing components required
-
-**Priority 4: Data population (not schema creation)**
-- [ ] Populate `transportation_costs` component data into existing costing tables
-- [ ] 681 flat combined-adder records → componentized entries in `costing` + `shipping_line_items`
-- [ ] Note: schema tables already exist — this is a data migration task
+**Priority 4: Colonial GC→ATL corridor completeness checklist**
+- [ ] Filter terminal_capture_staging for GA, AL, TN, MS terminals
+- [ ] Identify Colonial pipeline injection/delivery points
+- [ ] Define corridor asset list
 
 ---
 
@@ -156,11 +149,21 @@ Every repeatable procedure becomes a SKILL.md. Initial skills to create:
 
 ✅ **Proven methodology is the IP** - The costing methodology in the Excel docs is the differentiating asset. Encode it as Skills + data model.
 
-✅ **Schema is ahead of the docs** - create_database.py has ~52 tables including full componentized costing infrastructure. Always read the code, not just the documentation, to understand true current state.
+✅ **Schema is ahead of the docs** - create_database.py has 54 tables including full componentized costing infrastructure. Always read the code, not just the documentation, to understand true current state.
 
-✅ **Staging table is non-negotiable** - terminal_discovery_agent.py writes directly to production tables (design flaw). All new asset agents must use a staging buffer. Never write unvalidated captures directly to terminals.
+✅ **Staging table is non-negotiable** - terminal_discovery_agent.py writes directly to production tables (design flaw). All new asset agents must use terminal_capture_staging as a buffer. Never write unvalidated captures directly to terminals.
 
-✅ **Claude Code role is clear** - Best operated by someone with domain expertise + coding judgment. Use "propose before write" for all schema changes. Not suitable for non-technical solo operation against production data.
+✅ **Claude Code model matters** - Default is Opus 4.6 in the desktop app. Switch to Sonnet 4.6 at the start of every session — same quality for agent building, significantly faster and cheaper.
+
+✅ **GitHub Desktop ≠ Git** - Claude Code requires Git for Windows (git-scm.com) installed separately. GitHub Desktop has its own internal Git that Claude Code cannot access.
+
+✅ **IRS TCN data is NOT in Publication 510** - The terminal listing is a separate downloadable file called the TCN Directory at irs.gov/pub/irs-sbse/tcn-db.xlsx. Publication 510 is the excise tax rules document only.
+
+✅ **IRS TCN format is XX-ST-XXXX not XX-XXXXXXX** - Format is `04-MA-1151` (2-digit region, 2-letter state, 4-digit number). config.TCN_PATTERN must be updated to `^\d{2}-[A-Z]{2}-\d{4}$`.
+
+✅ **IRS TCN directory has no operator field** - The IRS file contains TERMNO, TERMNAME, TERMADDR1, TERMADDR2, TERMCITY, TERMST, TERMZIP. Operator/owner data requires enrichment from a separate source (EIA, EPA RMP, web search).
+
+✅ **Diagnostic first, fix second** - When a data source returns 0 records, print raw column names and first 3 rows before attempting to fix the parser. Saves multiple debugging cycles.
 
 ---
 
@@ -184,10 +187,21 @@ Every repeatable procedure becomes a SKILL.md. Initial skills to create:
 - Claude Code integrated into stack architecture as primary build tool
 - Asset agent pipeline designed: Capture → Validate → Enrich (3-stage, staging-table pattern)
 - Identified design flaw in terminal_discovery_agent.py: direct production writes, no staging, no web_search tool, non-UUID IDs
-- Confirmed schema is ~52 tables (not 16 as previously documented) — componentized costing tables already exist
-- Updated config.py: model string corrected to claude-sonnet-4-6
-- SC Core Claude Stack Architecture deck updated (2-slide visual with Claude Code deep dive)
-- Ready to begin Claude Code first session: asset capture agent build
+- Confirmed schema is 54 tables (not 16 as previously documented) — componentized costing tables already exist at schema level; migration is data population not schema creation
+- Updated config.py: model string corrected to claude-sonnet-4-6; ASSET_STAGING_TABLE, STAGING_REVIEW_THRESHOLD, CAPTURE_SOURCES constants added
+- Fixed data_quality_log schema in create_database.py to match agent INSERT columns
+- Added terminal_capture_staging table to create_database.py
+- Folder structure cleaned: agents\, skills\, Reference\ folders created; clutter removed to Reference\
+- Fresh supply_chain.db created with 54 tables, 6 views, 35 indexes
+- Git for Windows 2.53.0 installed (required for Claude Code desktop app)
+- Claude Code desktop app confirmed connected to Alexaja01/supply-chain-mapping on main branch
+- **terminal_capture_agent.py built by Claude Code — 547 lines, committed to repo**
+- **1,332 IRS TCN terminals captured to terminal_capture_staging ✅**
+- IRS TCN format confirmed: `XX-ST-XXXX` (e.g. `04-MA-1151`) — NOT `^\d{2}-\d{7}$`
+- config.TCN_PATTERN needs update to `^\d{2}-[A-Z]{2}-\d{4}$` — defer to Session 4
+- Confidence scores at 0.70 — TCN pattern mismatch + missing operator field — calibrate in validation agent
+- Operators confirmed in data: Irving Oil, Sprague, Global Companies, Energy Transfer, Citgo, ExxonMobil
+- **Claude Code model: always switch to Sonnet 4.6 at session start — default is Opus 4.6**
 
 ---
 
