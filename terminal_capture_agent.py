@@ -275,7 +275,9 @@ class TerminalCaptureAgent:
             return []
 
         try:
-            df = pd.read_excel(path, dtype=str).fillna("")
+            # header=1: skip the title row ("ACTIVE FUEL TERMINALS @...") and
+            # treat the second Excel row (TERMNO, TERMNAME, …) as column names.
+            df = pd.read_excel(path, header=1, dtype=str).fillna("")
 
             # Always show raw structure so column names are visible
             print(f"\n  --- Raw Excel structure: {len(df)} rows x {len(df.columns)} columns ---")
@@ -301,11 +303,22 @@ class TerminalCaptureAgent:
 
     def _normalize_tcn_row(self, row):
         """
-        Map an IRS TCN Directory row (any column naming convention) to our
-        standard terminal dict.  Returns None for blank rows.
+        Map an IRS TCN Directory row to our standard terminal dict.
+        Returns None for blank rows.
 
-        IRS column names vary by publication year; we match case-insensitively
-        against known aliases for each field.
+        Actual column names in tcn-db.xlsx (confirmed 2026-02-26):
+          TERMNO    → tcn       (format: T-01-ME-1000)
+          TERMNAME  → name
+          TERMADDR1 → address line 1
+          TERMADDR2 → address line 2 (combined with TERMADDR1)
+          TERMCITY  → city
+          TERMST    → state
+          TERMZIP   → zip
+          SECUREAIR → not mapped (stored in raw_data via _write_to_staging)
+
+        Note: the file has no operator/owner column — those fields will be
+        blank for all IRS-sourced records and will incur the -0.10 confidence
+        deduction until enriched downstream.
         """
         lc = {k.lower().strip(): str(v or "").strip() for k, v in row.items()}
 
@@ -316,33 +329,27 @@ class TerminalCaptureAgent:
                     return v
             return ""
 
-        tcn      = pick("tcn", "terminal control number", "terminal_control_number",
-                        "control number", "control_number")
-        name     = pick("terminal name", "terminal_name", "name",
-                        "facility name", "facility_name", "terminal")
-        operator = pick("operator", "operator name", "operator_name",
-                        "company", "company name", "company_name", "registrant")
-        city     = pick("city")
-        state    = pick("state", "state code", "state_code", "st")
-        address  = pick("address", "street address", "street_address",
-                        "street", "address1", "addr")
-        county   = pick("county")
-        owner    = pick("owner", "owner name", "owner_name")
-        zip_code = pick("zip", "zip code", "zip_code", "zipcode",
-                        "postal code", "postal_code")
+        tcn      = pick("termno")
+        name     = pick("termname")
+        addr1    = pick("termaddr1")
+        addr2    = pick("termaddr2")
+        address  = ", ".join(filter(None, [addr1, addr2]))
+        city     = pick("termcity")
+        state    = pick("termst")
+        zip_code = pick("termzip")
 
-        if not any([tcn, name, operator]):
-            return None  # skip blank / header-only rows
+        if not any([tcn, name]):
+            return None  # skip blank rows
 
         return {
             "tcn":      tcn,
             "name":     name,
-            "operator": operator,
+            "operator": "",   # not in IRS file — enriched downstream
             "city":     city,
             "state":    state,
             "address":  address,
-            "county":   county,
-            "owner":    owner,
+            "county":   "",   # not in IRS file
+            "owner":    "",   # not in IRS file
             "zip":      zip_code,
         }
 
