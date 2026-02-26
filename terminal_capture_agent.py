@@ -127,105 +127,222 @@ class TerminalCaptureAgent:
 
     def _fetch_irs_510_terminals(self):
         """
-        Call Claude with the web_search tool to retrieve terminal listings
-        from IRS Publication 510.  Assembles the response from all text blocks
-        (web_search interleaves tool_use blocks, which are skipped).
+        Locate, download, and parse the IRS TCN Directory.
 
-        Returns:
-            list[dict]: Raw terminal records from the publication.
+        Flow:
+          1. Claude + web_search  → find the current download URL on irs.gov
+          2. urllib               → download the file (CSV or Excel) to a temp path
+          3. csv / openpyxl       → parse rows into terminal dicts
         """
-        prompt = """Search irs.gov for the current version of IRS Publication 510
-(Excise Taxes). Find the appendix or section that lists registered petroleum
-terminal operators and their Terminal Control Numbers (TCNs).
+        print("  Searching for IRS TCN Directory download URL...")
+        url = self._find_tcn_directory_url()
+        if not url:
+            print("  Could not locate TCN Directory download URL.")
+            return []
 
-TCNs are formatted as XX-XXXXXXX — two digits, a hyphen, then seven digits
-(example: 13-1234567).
+        print(f"  TCN Directory URL: {url}")
+        local_path = self._download_tcn_file(url)
+        if not local_path:
+            return []
 
-Extract EVERY terminal entry. For each record return:
-  - name      : terminal or facility name
-  - operator  : operating company name
-  - city      : city
-  - state     : 2-letter US state code (uppercase)
-  - tcn       : Terminal Control Number in format XX-XXXXXXX
-  - address   : full street address if listed
-  - county    : county if listed
-  - owner     : owner name if different from operator
+        try:
+            terminals = self._parse_tcn_file(local_path)
+            print(f"  Parsed {len(terminals)} terminal records.")
+            return terminals
+        finally:
+            try:
+                os.unlink(local_path)
+            except OSError:
+                pass
 
-Return ONLY a JSON object — no markdown fences, no prose, no commentary:
-{
-  "publication_date": "YYYY-MM-DD or null",
-  "source_url": "https://...",
-  "terminals": [
-    {
-      "name": "...",
-      "operator": "...",
-      "city": "...",
-      "state": "XX",
-      "tcn": "XX-XXXXXXX",
-      "address": "...",
-      "county": "...",
-      "owner": "..."
-    }
-  ]
-}
+    def _find_tcn_directory_url(self):
+        """
+        Use Claude + web_search to locate the current TCN Directory download URL
+        at irs.gov/businesses/small-businesses-self-employed/terminal-control-number-tcn-directory.
 
-Do not truncate the list. Extract all terminals found in the publication."""
+        Returns the URL string, or None if not found.
+        """
+        prompt = (
+            "Visit https://www.irs.gov/businesses/small-businesses-self-employed/"
+            "terminal-control-number-tcn-directory and find the direct download link "
+            "for the TCN Directory file. It is typically a CSV or Excel (.xlsx) file "
+            "hosted under irs.gov/pub/.\n\n"
+            "Return ONLY the direct download URL as a single line of plain text. "
+            "No explanation, no JSON, no markdown."
+        )
 
         response = self.client.messages.create(
             model=config.CLAUDE_MODEL,
-            max_tokens=16000,
+            max_tokens=500,
             tools=[{"type": "web_search_20250305", "name": "web_search"}],
             messages=[{"role": "user", "content": prompt}],
         )
 
-        # Collect all text blocks — tool_use blocks (search calls) are skipped
         response_text = ""
         for block in response.content:
             if block.type == "text":
                 response_text += block.text
+        response_text = response_text.strip()
 
-        if not response_text.strip():
-            print("  Warning: no text blocks returned from Claude.")
+        # Prefer a URL that ends with a known file extension
+        match = re.search(
+            r'https?://\S+\.(?:csv|xlsx|xls)\b', response_text, re.IGNORECASE
+        )
+        if match:
+            return match.group().rstrip(".,)")
+
+        # Fallback: any irs.gov/pub/ path (file extension may be absent from URL)
+        match = re.search(
+            r'https?://(?:www\.)?irs\.gov/pub/\S+', response_text, re.IGNORECASE
+        )
+        if match:
+            return match.group().rstrip(".,)")
+
+        # Last resort: first URL in the response
+        match = re.search(r'https?://\S+', response_text)
+        if match:
+            return match.group().rstrip(".,)")
+
+        print(f"  No URL found in Claude response: {response_text[:200]}")
+        return None
+
+    def _download_tcn_file(self, url):
+        """
+        Download the TCN Directory file to a temporary path.
+
+        Returns the local file path, or None on failure.
+        """
+        import tempfile
+        import urllib.request
+
+        lower_url = url.lower()
+        suffix = ".xlsx" if ".xlsx" in lower_url else ".xls" if ".xls" in lower_url else ".csv"
+
+        tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        tmp.close()
+
+        try:
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; supply-chain-agent/1.0)"},
+            )
+            print(f"  Downloading TCN Directory ({suffix})...")
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                with open(tmp.name, "wb") as fh:
+                    fh.write(resp.read())
+            return tmp.name
+        except Exception as exc:
+            print(f"  Download failed: {exc}")
+            try:
+                os.unlink(tmp.name)
+            except OSError:
+                pass
+            return None
+
+    def _parse_tcn_file(self, path):
+        """Dispatch to CSV or Excel parser based on file extension."""
+        if path.lower().endswith(".csv"):
+            return self._parse_tcn_csv(path)
+        return self._parse_tcn_excel(path)
+
+    def _parse_tcn_csv(self, path):
+        """Parse a CSV TCN Directory into a list of terminal dicts."""
+        import csv
+
+        for encoding in ("utf-8-sig", "utf-8", "latin-1"):
+            try:
+                terminals = []
+                with open(path, newline="", encoding=encoding) as fh:
+                    for row in csv.DictReader(fh):
+                        t = self._normalize_tcn_row(row)
+                        if t is not None:
+                            terminals.append(t)
+                print(f"  Parsed CSV: {len(terminals)} records (encoding: {encoding})")
+                return terminals
+            except UnicodeDecodeError:
+                continue
+            except Exception as exc:
+                print(f"  CSV parse error: {exc}")
+                return []
+
+        print("  Could not decode CSV with any supported encoding.")
+        return []
+
+    def _parse_tcn_excel(self, path):
+        """Parse an Excel (.xlsx / .xls) TCN Directory into a list of terminal dicts."""
+        try:
+            import openpyxl
+        except ImportError:
+            print("  openpyxl is required for Excel files: pip install openpyxl")
             return []
 
-        return self._parse_terminals_json(response_text)
-
-    def _parse_terminals_json(self, text):
-        """
-        Extract the terminal list from Claude's response text.
-        Strips markdown fences if present, then tries a direct JSON parse
-        followed by a regex fallback.
-
-        Returns:
-            list[dict]
-        """
-        # Strip markdown code fences if Claude wrapped the JSON
-        text = re.sub(r"```(?:json)?", "", text).strip()
-
-        # Direct parse
         try:
-            data = json.loads(text)
-            terminals = data.get("terminals", [])
-            print(
-                f"  Parsed JSON: publication_date={data.get('publication_date')}, "
-                f"source={data.get('source_url')}"
-            )
+            wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+            ws = wb.active
+            rows = list(ws.rows)
+            if not rows:
+                return []
+
+            headers = [str(cell.value or "").strip() for cell in rows[0]]
+            terminals = []
+            for row in rows[1:]:
+                values = [str(cell.value or "").strip() for cell in row]
+                t = self._normalize_tcn_row(dict(zip(headers, values)))
+                if t is not None:
+                    terminals.append(t)
+
+            print(f"  Parsed Excel: {len(terminals)} records")
             return terminals
-        except json.JSONDecodeError:
-            pass
+        except Exception as exc:
+            print(f"  Excel parse error: {exc}")
+            return []
 
-        # Regex fallback — find outermost JSON object containing "terminals"
-        match = re.search(r'\{[\s\S]*"terminals"[\s\S]*\}', text)
-        if match:
-            try:
-                data = json.loads(match.group())
-                return data.get("terminals", [])
-            except json.JSONDecodeError:
-                pass
+    def _normalize_tcn_row(self, row):
+        """
+        Map an IRS TCN Directory row (any column naming convention) to our
+        standard terminal dict.  Returns None for blank rows.
 
-        print("  Warning: could not parse JSON from Claude response.")
-        print(f"  Raw response excerpt: {text[:500]}")
-        return []
+        IRS column names vary by publication year; we match case-insensitively
+        against known aliases for each field.
+        """
+        lc = {k.lower().strip(): str(v or "").strip() for k, v in row.items()}
+
+        def pick(*candidates):
+            for c in candidates:
+                v = lc.get(c, "")
+                if v:
+                    return v
+            return ""
+
+        tcn      = pick("tcn", "terminal control number", "terminal_control_number",
+                        "control number", "control_number")
+        name     = pick("terminal name", "terminal_name", "name",
+                        "facility name", "facility_name", "terminal")
+        operator = pick("operator", "operator name", "operator_name",
+                        "company", "company name", "company_name", "registrant")
+        city     = pick("city")
+        state    = pick("state", "state code", "state_code", "st")
+        address  = pick("address", "street address", "street_address",
+                        "street", "address1", "addr")
+        county   = pick("county")
+        owner    = pick("owner", "owner name", "owner_name")
+        zip_code = pick("zip", "zip code", "zip_code", "zipcode",
+                        "postal code", "postal_code")
+
+        if not any([tcn, name, operator]):
+            return None  # skip blank / header-only rows
+
+        return {
+            "tcn":      tcn,
+            "name":     name,
+            "operator": operator,
+            "city":     city,
+            "state":    state,
+            "address":  address,
+            "county":   county,
+            "owner":    owner,
+            "zip":      zip_code,
+        }
 
     # =========================================================================
     # CONFIDENCE SCORING
