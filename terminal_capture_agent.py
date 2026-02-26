@@ -127,19 +127,13 @@ class TerminalCaptureAgent:
 
     def _fetch_irs_510_terminals(self):
         """
-        Locate, download, and parse the IRS TCN Directory.
+        Download and parse the IRS TCN Directory from its known stable URL.
 
         Flow:
-          1. Claude + web_search  → find the current download URL on irs.gov
-          2. urllib               → download the file (CSV or Excel) to a temp path
-          3. csv / openpyxl       → parse rows into terminal dicts
+          1. urllib  → download tcn-db.xlsx to a temp path
+          2. pandas  → inspect structure, then parse rows into terminal dicts
         """
-        print("  Searching for IRS TCN Directory download URL...")
-        url = self._find_tcn_directory_url()
-        if not url:
-            print("  Could not locate TCN Directory download URL.")
-            return []
-
+        url = "https://www.irs.gov/pub/irs-sbse/tcn-db.xlsx"
         print(f"  TCN Directory URL: {url}")
         local_path = self._download_tcn_file(url)
         if not local_path:
@@ -269,27 +263,35 @@ class TerminalCaptureAgent:
         return []
 
     def _parse_tcn_excel(self, path):
-        """Parse an Excel (.xlsx / .xls) TCN Directory into a list of terminal dicts."""
+        """Parse an Excel TCN Directory using pandas.
+
+        Always prints the first 3 raw rows so column names are visible.
+        If 0 records are mapped, prints a full diagnostic block.
+        """
         try:
-            import openpyxl
+            import pandas as pd
         except ImportError:
-            print("  openpyxl is required for Excel files: pip install openpyxl")
+            print("  pandas is required: pip install pandas openpyxl")
             return []
 
         try:
-            wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
-            ws = wb.active
-            rows = list(ws.rows)
-            if not rows:
-                return []
+            df = pd.read_excel(path, dtype=str).fillna("")
 
-            headers = [str(cell.value or "").strip() for cell in rows[0]]
+            # Always show raw structure so column names are visible
+            print(f"\n  --- Raw Excel structure: {len(df)} rows x {len(df.columns)} columns ---")
+            print(f"  Columns: {df.columns.tolist()}")
+            print(f"  First 3 rows:\n{df.head(3).to_string()}\n")
+
             terminals = []
-            for row in rows[1:]:
-                values = [str(cell.value or "").strip() for cell in row]
-                t = self._normalize_tcn_row(dict(zip(headers, values)))
+            for _, row in df.iterrows():
+                t = self._normalize_tcn_row(row.to_dict())
                 if t is not None:
                     terminals.append(t)
+
+            if len(terminals) == 0:
+                print("  DIAGNOSTIC: 0 records mapped — column aliases did not match.")
+                print(f"  df.columns.tolist() = {df.columns.tolist()}")
+                print(f"  df.head(3):\n{df.head(3).to_string()}")
 
             print(f"  Parsed Excel: {len(terminals)} records")
             return terminals
