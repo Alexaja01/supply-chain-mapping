@@ -1,541 +1,195 @@
 # PROJECT STATE - Supply Chain Mapping System
 
-**Last Updated:** February 11, 2026 - 9:30 AM  
+**Last Updated:** February 26, 2026  
 **Project Owner:** jalex  
-**Current Phase:** Schema Evolution Complete - 53-Table Normalized Database Built!  
-**Session Progress:** Day 2 - Major Database Redesign âœ…
+**Current Phase:** Asset Agent Build — Claude Code Integration  
+**Session Progress:** Claude Code architecture designed; ready to begin asset agent pipeline build
 
 ---
 
-## 🎉 MAJOR MILESTONE ACHIEVED TODAY
+## 🎯 PROJECT MISSION (UPDATED)
 
-**Complete schema redesign from 16 tables to 53 tables - capturing the full costing methodology!**
+Build a **Supply Chain Intelligence Engine** built **asset-first** in **PADD 3**, layered upward into connectivity, costing, and agent workflows.
 
-Yesterday we had a simplified 16-table schema. Today (via Cowork session) we performed a comprehensive gap analysis comparing the old PostgreSQL production system against our new SQLite implementation, and rebuilt the entire database to properly model the complete costing workflow.
+**Key design pivot:** The existing 227 terminals + combined adder dataset is an *output* of costing, not the costing process itself. To support recalculation, explainability, updates, and portfolio-wide reasoning, we must build the **engine**, not just store **results**.
 
-**Key Achievement:** The new schema now captures the full **Costing → Shipping → BCS → Tenant** data flow that was present in the production system.
+**Architecture sequence:** Assets → Connectivity → Costing → Participants → Contracts → Transactions
 
----
+**Strategic driver:** Built Claude-native but designed to be exportable/licensable to NewTide.ai RisingTide as a standalone system or integrated module.
 
-## 🎯 PROJECT MISSION
-
-Build an **agent-driven system** for mapping the US refined products supply chain end-to-end:
-- **From:** Refinery tailgate
-- **Through:** Pipelines, rail, marine transport  
-- **To:** Terminal racks with IRS TCNs
-
-**Goal:** Automate 80-90% of data collection and maintenance using Claude AI agents, reducing human effort from 65 hours/week to 10-15 hours/week.
-
-**Business Value:** 
+**Business Value:**
 - Cost: ~$4-6K/year in AI API vs $80-120K/year for FTE
 - Efficiency: 70-85% reduction in manual work
 - Scalability: 500+ terminals vs manual limit of ~50-100
-- **NEW:** Multi-tenant support with proper alias framework
 
 ---
 
-## 📊 CURRENT STATUS SUMMARY
+## 🗂️ CLAUDE PROJECT STRUCTURE
 
-### ✅ COMPLETED (February 10-11, 2026)
+As of February 18, 2026, work is organized across Claude Projects to manage context window efficiently:
 
-**Day 1 Achievements (Feb 10):**
-- ✅ Initial 16-table database schema created
-- ✅ 227 terminals imported from Excel
-- ✅ 681 transportation cost records loaded
-- ✅ GitHub repository configured
-- ✅ Complete documentation suite created
-- ✅ Excel Import Agent working
+### SC Core (this project)
+Persistent brain - always loaded. Contains:
+- `PROJECT_STATE.md` - Project memory (this file)
+- `DEVELOPMENT_GUIDE.md` - Technical how-to reference
+- `README.md` - Project overview
+- `HOW_TO_PRESERVE_AND_ITERATE.md` - Long-term maintenance
 
-**Day 2 Achievements (Feb 11 - TODAY):**
-- ✅ **Comprehensive gap analysis** comparing old PostgreSQL system vs new SQLite schema
-- ✅ **Complete schema redesign** - 16 tables → 53 tables
-- ✅ **Normalized data model** capturing full costing methodology
-- ✅ **Multi-tenant architecture** with alias framework
-- ✅ **32 indexes** for performance
-- ✅ **All seed data loaded** - products, line items, costing items, spot indices, etc.
-- ✅ **Zero foreign key violations** - all relationships validated
+### SC - PADD3 POC (separate project)
+PADD 3 Intelligence Engine work. Contains:
+- `README — PADD 3 Supply Chain Project Update.md` - Strategic direction
+- `Costings_Process_and_Road_Map.docx` - Costing methodology
+- `Costings_Outline_for_BM_02_14_2024.docx` - Costing deliverables reference
 
----
-
-## 💾 DATABASE STATUS - MAJOR EVOLUTION
-
-### Schema Evolution: 16 → 53 Tables
-
-**OLD SCHEMA (Yesterday - 16 tables):**
-- Simplified structure
-- Flat `transportation_costs` table with combined adders only
-- No product hierarchy
-- No shipping period tracking
-- No costing detail breakdown
-- No multi-tenant support
-
-**NEW SCHEMA (Today - 53 tables):**
-- **Complete normalized model**
-- **Proper entity relationships**
-- **Full costing methodology captured**
-- **Multi-tenant architecture**
-- **Temporal tracking** (start_date/end_date on all cost data)
-- **Audit trail** (created_by, created_at, updated_at)
-
-### The 53 Tables - Organized by Domain
-
-#### **TIER 1: Product & Classification (5 tables)**
-1. `product_categories` - GAS, ETH, DSL ✅ **3 records seeded**
-2. `products` - Clear Gas, E10, E15, E85, Diesel ✅ **5 records seeded**
-3. `line_item_types` - Tariff, Facilities Charge, RIN, CARB, Combined Adder, etc. ✅ **18 records seeded**
-4. `costing_items` - Detailed cost components ✅ **12 records seeded**
-5. `price_days` - Prior Day, Same Day, etc. ✅ **Seeded**
-
-#### **TIER 2: Assets & Infrastructure (5 tables)**
-6. `terminals` - Terminal master data (227 terminals from yesterday retained)
-7. `terminal_markets` - Market groupings (Houston, Chicago, etc.)
-8. `pipelines` - Pipeline infrastructure
-9. `refineries` - Refinery locations
-10. `railroads` - Railroad carriers
-
-#### **TIER 3: Asset Relationships (7 tables)**
-11. `terminal_products` - Which products at which terminals
-12. `terminal_pipeline_links` - Terminal-pipeline connections
-13. `pipeline_refinery_links` - Pipeline-refinery connections
-14. `rail_connections` - Terminal rail sidings
-15. `marine_facilities` - Dock facilities
-16. `shipping_paths` - Origin → destination routes
-17. `terminal_path_links` - Terminals on shipping paths
-
-#### **TIER 4: Costing System (10 tables)**
-18. `shipping_periods` - Time periods for costing data
-19. `costing` - Individual cost line items (replaces flat transportation_costs)
-20. `pipeline_tariffs` - FERC pipeline rates
-21. `tariff_library` - Tariff document versions
-22. `tariff_costs` - Specific tariff values
-23. `tariff_path_links` - Tariffs applied to paths
-24. `terminal_rates` - Terminal facility charges
-25. `rail_rates` - Railroad transportation rates
-26. `spot_markets` - Pricing locations (Houston, Chicago, etc.)
-27. `spot_market_location_links` - Markets linked to shipping paths
-
-#### **TIER 5: Shipping Line Items (3 tables)**
-28. `shipping_setup` - Configuration for creating shipping line items
-29. `shipping_line_items` - Final shipping costs by product
-30. `spot_indices` - Pricing indices (PL_CHI_GAS_C, etc.) ✅ **Seeded**
-
-#### **TIER 6: BCS (Buying Cost Sheet) System (5 tables)**
-31. `bcs_types` - Shipping, Contract, etc. ✅ **2 records seeded**
-32. `bcs_period_statuses` - Draft, In Progress, Final, etc. ✅ **5 records seeded**
-33. `bcs` - Buying cost sheets
-34. `bcs_periods` - Time periods for BCS
-35. `bcs_line_items` - BCS line item details
-
-#### **TIER 7: Multi-Tenant Aliases (6 tables)**
-36. `alias_types` - EN Master UUID, Tenant UUID, etc. ✅ **Seeded**
-37. `terminal_aliases` - Terminal ID mappings
-38. `product_aliases` - Product ID mappings
-39. `index_aliases` - Index ID mappings
-40. `line_item_type_aliases` - Line item type mappings
-41. `price_day_aliases` - Price day mappings
-
-#### **TIER 8: ETL & Error Tracking (6 tables)**
-42. `batches` - ETL batch tracking
-43. `terminal_alias_errors` - Failed terminal lookups
-44. `product_alias_errors` - Failed product lookups
-45. `index_alias_errors` - Failed index lookups
-46. `line_item_type_alias_errors` - Failed line item type lookups
-47. `price_day_alias_errors` - Failed price day lookups
-
-#### **TIER 9: Management & Metadata (6 tables - from yesterday)**
-48. `agent_tasks` - Task queue
-49. `data_quality_log` - Quality tracking
-50. `agent_metrics` - Performance tracking
-51. `ownership_changes` - M&A tracking
-52. `source_documents` - Document tracking
-53. `shipping_tracking` - Activity logging
-
-### Views (6 total)
-1. `v_active_terminals` - Current terminals
-2. `v_active_pipeline_tariffs` - Current tariffs
-3. `v_review_queue` - Items needing review
-4. `v_current_shipping` - Current shipping costs
-5. `v_expired_shipping` - Historical shipping costs
-6. `v_future_shipping` - Upcoming shipping costs
-
-### Indexes (32 total)
-- Performance indexes on foreign keys
-- Temporal indexes on date ranges
-- Composite indexes for common queries
-
-### Current Data State
-
-**Migrated from Yesterday:**
-- ✅ 227 terminals (structure retained)
-- ⚠️ 681 transportation costs (need to migrate to new normalized structure)
-
-**Seeded Reference Data:**
-- ✅ 3 product categories (GAS, ETH, DSL)
-- ✅ 5 products (Clear Gas, E10, E15, E85, Diesel)
-- ✅ 18 line item types (Tariff through Combined Adder)
-- ✅ 12 costing items (tariff, facilities_charge, throughput, etc.)
-- ✅ Price days configuration
-- ✅ BCS types and statuses
-- ✅ Alias types
-
-**To Be Populated by Agents:**
-- Pipelines, refineries, railroads
-- Terminal products
-- Shipping periods
-- Costing details (migrated from flat transportation_costs)
-- Shipping line items
-- BCS records
+### Local Only (do not upload to projects)
+Access locally and upload to a session only when actively working that task:
+- All SQL QC query files (0-3 series)
+- All Excel QC workbooks (EN Costing/Shipping/BCS)
+- `QC_Queries_Docs_and_Workbooks.docx`
 
 ---
 
-## 🔄 DATA FLOW - NOW PROPERLY MODELED
+## 🚀 STRATEGIC DIRECTION (February 2026)
 
-The new schema captures the complete costing workflow:
+### First POC: Colonial Pipeline Corridor - Gulf Coast → Atlanta
+Why this corridor:
+- Central to PADD 3 logic and real markets
+- Maps to NewTide "Gulf Coast → Atlanta" arb demo patterns
+- Demonstrates asset completeness, connectivity correctness, costing explainability
 
-```
-1. COSTING LAYER
-   └─ costing table
-      └─ Links: terminal + product_category + costing_item
-      └─ Grouped by: shipping_period
-      └─ Example: "Houston terminal, GAS, tariff component = $0.045/gal"
+Definition of "done" for corridor POC:
+- Assets fully specified (terminal attributes, pipeline points, product applicability, constraints)
+- Route graph defined (segments + rules)
+- Cost components defined + computed (with traceability to sources)
+- QC checks pass
+- Outputs: landed cost/netback comparison tables + explainable cost breakdown per path
 
-2. SHIPPING LAYER
-   └─ shipping_line_items table
-      └─ Aggregates costing by product
-      └─ Links to spot_indices for pricing
-      └─ Includes line_item_types (Tariff, RIN, CARB, etc.)
-      └─ Example: "Houston E10 shipping = $0.12/gal combined adder"
+### Layered Architecture
+1. **Layer 1 - Knowledge Foundation** - Skills, schemas, corridor playbooks (Claude Projects)
+2. **Layer 2 - Asset Database** - Authoritative structured records (local, maintained via Cowork)
+3. **Layer 3 - Connectivity Graph** - Routes, multi-hop paths, constraints
+4. **Layer 4 - Costing Engine** - Componentized cost model (the IP layer)
+5. **Layer 5 - Agent Layer** - Ongoing maintenance, refreshes, QC, use-case workflows
 
-3. BCS LAYER (Buying Cost Sheet)
-   └─ bcs_line_items table
-      └─ Published shipping costs
-      └─ Includes product aliases for multi-tenant
-      └─ Example: "BCS for Houston market with E10 at $0.12/gal"
-
-4. TENANT LAYER
-   └─ Alias tables map EN Master UUIDs → Tenant UUIDs
-   └─ Error tables track failed lookups
-   └─ Batch tracking for ETL processes
-```
-
-**This matches the production PostgreSQL system's architecture!**
+### Skills-First Implementation
+Every repeatable procedure becomes a SKILL.md. Initial skills to create:
+1. **Tariff Extraction Skill** - extract rates + effective dates from PDFs, normalize units
+2. **PADD3 Costing Skill** - component hierarchy, calculation rules, output: cost breakdown
+3. **Terminal Validation Skill** - completeness scoring, human review triggers
+4. **Netback / Landed Cost Skill** - spot inputs + freight + terminal charges → comparisons
 
 ---
 
-## 🎓 WHAT WAS LEARNED TODAY
+## 💾 DATABASE STATUS
 
-### Gap Analysis Process
+### Current Schema (52 Tables - per create_database.py)
 
-We compared **4 SQL query files** from the old system against the new schema:
-1. `0 - Validate EN Costing Tariff Values.sql`
-2. `1 - EN Costing to EN Shipping Queries.sql`
-3. `2 - EN Shipping to EN BCS Queries.sql`
-4. `3 - EN BCS to TENANT BCS Queries.sql`
+**NOTE:** PROJECT_STATE.md previously stated 16 tables — this was stale. The actual schema created by `create_database.py` contains ~52 tables across 11 groups. Componentized costing infrastructure (costing_items, line_item_types, tariff_costs, etc.) **already exists at the schema level** but is not yet populated with component-level data. The migration work is a data population task, not a schema creation task.
 
-Plus the **costing process documentation**:
-- `Costings Outline for BM 02_14_2024.docx`
-- `Costings Process and Road Map.docx`
-- `QC Queries Docs and Workbooks.docx`
+**Table Groups (52 total):**
+1. **Master Data (8):** product_categories, products, terminals, terminal_products, pipelines, refineries, rail_connections, marine_facilities
+2. **Configuration (4):** line_item_types, costing_items, shipping_setup, price_days
+3. **Linkage (5):** terminal_pipeline_links, pipeline_refinery_links, shipping_paths, terminal_path_links, tariff_path_links
+4. **Costing (7):** pipeline_tariffs, tariff_libraries, tariff_costs, terminal_rates, transportation_costs, rail_rates, costing
+5. **Shipping (2):** shipping_periods, shipping_line_items
+6. **Spot Market (3):** spot_markets, index_components, spot_indices
+7. **BCS / Buying Cost Sheets (5):** bcs_types, bcs_period_statuses, bcs, bcs_periods, bcs_line_items
+8. **Alias / Multi-Tenant (7):** alias_types, terminal_aliases, product_aliases, line_item_type_aliases, index_aliases, price_day_aliases, (+ 1 TBD)
+9. **Management (5):** agent_tasks, data_quality_log, agent_metrics, ownership_changes, source_documents
+10. **Alias Error Tracking (5):** terminal_alias_errors, product_alias_errors, line_item_type_alias_errors, index_alias_errors, price_day_alias_errors
+11. **ETL Tracking (2):** batches, shipping_tracking
 
-### Key Insights
+**5+ Views:** v_active_terminals, v_active_pipeline_tariffs, v_review_queue, v_costing_detail, v_bcs_detail
 
-**What We Missed in v1 (16 tables):**
-- ❌ No product hierarchy (category → product)
-- ❌ No line item breakdown (just combined adders)
-- ❌ No temporal tracking (start/end dates)
-- ❌ No shipping period concept
-- ❌ No spot indices/pricing
-- ❌ No BCS layer
-- ❌ No multi-tenant aliases
-
-**What v2 (53 tables) Now Captures:**
-- ✅ Complete product taxonomy
-- ✅ Granular costing breakdown by component
-- ✅ Proper temporal tracking
-- ✅ Shipping periods with start/end dates
-- ✅ Spot market pricing integration
-- ✅ BCS subsystem for published costs
-- ✅ Multi-tenant architecture with alias framework
-- ✅ ETL error tracking
-- ✅ Complete audit trail
+### Current Data
+- **Terminals: 227** ✅ (snapshot as of 2024-01-01)
+- **Transportation Costs: 681** ✅ (227 × 3 products - combined adders only)
+- Pipelines: 0
+- Tariffs: 0
 
 ---
 
-## 📝 IMMEDIATE NEXT STEPS
+## ⚡ IMMEDIATE NEXT STEPS
 
-### Priority 1: Data Migration (This Week)
+**Priority 0: Claude Code — Install & First Session**
+- [ ] Install: `npm install -g @anthropic-ai/claude-code`
+- [ ] Open terminal in `C:\Users\jalex\supply-chain\supply-chain-mapping`
+- [ ] Opening prompt: load PROJECT_STATE.md, config.py, create_database.py, terminal_discovery_agent.py
+- [ ] First task: build `terminal_capture_agent.py` using IRS 510 as first source
+- [ ] **Design constraints for Claude Code (do not deviate without approval):**
+  - New asset agents write to `terminal_capture_staging` — NOT directly to `terminals`
+  - All new agents use `uuid.uuid4()` for primary keys (not the legacy `ST####` pattern)
+  - Add `web_search` tool explicitly to any Claude API calls needing live data
+  - Propose schema changes before implementing — wait for approval
+  - Leverage existing schema tables before adding new ones
 
-**Current State:**
-- 227 terminals ✅ (already in new schema)
-- 681 transportation_costs records ⚠️ (in old flat format)
+**Priority 1: Asset Agent Pipeline (Claude Code build)**
+- [ ] `terminal_capture_agent.py` — Stage 1: IRS 510 capture → staging table
+- [ ] `terminal_validate_agent.py` — Stage 2: conflict detection, geocoding, confidence scoring
+- [ ] `terminal_enrich_agent.py` — Stage 3: web enrichment, aliases, EPA RMP, EIA data
 
-**Need To:**
-1. **Parse the flat transportation_costs** into normalized costing records
-   - Each terminal × product combination → multiple costing rows
-   - Split combined adder into: tariff, facilities, throughput, TVM, basis, etc.
-   - Assign proper costing_item_id for each component
+**Priority 2: Create first two Skills**
+- [ ] `/skills/Tariff_Extraction/SKILL.md`
+- [ ] `/skills/PADD3_Costing/SKILL.md`
 
-2. **Create shipping_periods** for each terminal
-   - Use effective_date from transportation_costs
-   - Create end_date (e.g., 2024-12-31)
+**Priority 3: Define Colonial GC→ATL corridor completeness checklist**
+- [ ] Asset list for corridor
+- [ ] Connectivity requirements
+- [ ] Costing components required
 
-3. **Build shipping_line_items** from costing data
-   - Aggregate costing by product
-   - Create line items for: Base Product, RIN, CARB, Combined Adder
-   - Link to spot_indices
-
-**Tool:** Update `excel_import_agent.py` to populate normalized schema
-
-### Priority 2: Update Agent Code (This Week)
-
-**Agents to Update:**
-1. `excel_import_agent.py` - Parse to normalized costing structure
-2. `terminal_discovery_agent.py` - Add terminal_products creation
-3. Create `costing_to_shipping_agent.py` - Generate shipping line items
-4. Create `shipping_to_bcs_agent.py` - Publish BCS records
-
-### Priority 3: Validation (This Week)
-
-**Verify:**
-- [ ] All 227 terminals have terminal_products records
-- [ ] All 681 costs split correctly into costing table
-- [ ] Shipping line items aggregate correctly
-- [ ] Combined adders match Excel source
-- [ ] Foreign key integrity maintained
-
-### Priority 4: Documentation (This Week)
-
-**Update:**
-- [ ] README.md - Reflect 53-table schema
-- [ ] DEVELOPMENT_GUIDE.md - New patterns for normalized data
-- [ ] Create ER_DIAGRAM.md - Visual schema reference
+**Priority 4: Data population (not schema creation)**
+- [ ] Populate `transportation_costs` component data into existing costing tables
+- [ ] 681 flat combined-adder records → componentized entries in `costing` + `shipping_line_items`
+- [ ] Note: schema tables already exist — this is a data migration task
 
 ---
 
-## 🚀 AGENTS - UPDATED STATUS
+## 📚 KEY LEARNINGS
 
-### Built & Working (Need Updates for New Schema)
-1. ✅ Terminal Discovery Agent - **Needs: terminal_products creation**
-2. ✅ Excel Import Agent - **Needs: normalized costing population**
+✅ **Combined adder ≠ costing engine** - The flat import was useful to prove data exists, but the real work is building component-level cost tracking.
 
-### High Priority - To Build
-3. ⏳ **Costing to Shipping Agent** - NEW! Generate shipping_line_items
-4. ⏳ **Shipping to BCS Agent** - NEW! Publish BCS records
-5. ⏳ Pipeline Tariff Agent - Populate tariff_library, tariff_costs
-6. ⏳ Refinery Discovery Agent - Map refinery locations
-7. ⏳ Supply Chain Audit Agent - Validate end-to-end paths
+✅ **Context window management matters** - Restructured Claude projects to keep Core lean. SQL/Excel QC files are local-only and uploaded per session as needed.
 
----
+✅ **Skills-first beats agents-first** - Encode repeatable procedures as Skills before building agents. Skills are portable to Cowork and future platforms.
 
-## 🛠️ TECHNICAL DEBT & DECISIONS
+✅ **Understanding data structure first** - Critical before coding. Reading process documentation revealed true structure.
 
-### Design Decisions Made Today
+✅ **Proven methodology is the IP** - The costing methodology in the Excel docs is the differentiating asset. Encode it as Skills + data model.
 
-**1. SQLite vs PostgreSQL**
-- Staying with SQLite for simplicity
-- 53 tables work fine in SQLite
-- Can migrate to PostgreSQL later if needed
+✅ **Schema is ahead of the docs** - create_database.py has ~52 tables including full componentized costing infrastructure. Always read the code, not just the documentation, to understand true current state.
 
-**2. Normalization Level**
-- Chose 3NF (Third Normal Form)
-- Balances flexibility vs. query complexity
-- Matches production system's design
+✅ **Staging table is non-negotiable** - terminal_discovery_agent.py writes directly to production tables (design flaw). All new asset agents must use a staging buffer. Never write unvalidated captures directly to terminals.
 
-**3. Multi-Tenant Architecture**
-- Alias tables for cross-tenant mapping
-- Error tables for tracking lookup failures
-- Batch tracking for ETL auditing
-
-**4. Temporal Tracking**
-- All cost data has start_date/end_date
-- Supports historical analysis
-- Enables period-over-period comparison
-
-### Known Issues
-
-**Issue 1: Data Migration Needed**
-- 681 flat transportation_costs need parsing
-- Need mapping from combined adder → individual components
-- **Solution:** Build migration script in excel_import_agent.py
-
-**Issue 2: Spot Indices Not Populated**
-- spot_indices table has seed data but not actual market indices
-- Need to discover/scrape actual pricing indices
-- **Solution:** Build spot_index_discovery_agent.py
-
-**Issue 3: Documentation Lags Schema**
-- README, DEVELOPMENT_GUIDE reference old 16-table schema
-- ER diagram doesn't exist yet
-- **Solution:** Update docs this week
+✅ **Claude Code role is clear** - Best operated by someone with domain expertise + coding judgment. Use "propose before write" for all schema changes. Not suitable for non-technical solo operation against production data.
 
 ---
 
-## 📊 SESSION METRICS
+## 📋 SESSION LOG
 
-### Day 1 (Feb 10) Metrics
-- Tables Created: 16
-- Records Imported: 908 (227 terminals + 681 costs)
-- Code Written: 1,800 lines
-- Time: ~12 hours
+**Session 1 (February 10, 2026):**
+- Complete infrastructure built (16 tables)
+- 227 terminals imported, 681 transportation cost records created
+- Excel Import Agent, Terminal Discovery Agent, Orchestrator built
+- 1,800+ lines of code, 10+ documentation files
+- GitHub repository configured
 
-### Day 2 (Feb 11) Metrics - TODAY
-- Tables Added: +37 (16 → 53)
-- Views Added: +3 (3 → 6)
-- Indexes Created: 32
-- Seed Records: ~50 across reference tables
-- Code Written: ~500 lines (create_database.py rewrite)
-- Time: ~4 hours (Cowork session)
-- **Status:** Schema redesign complete, data migration pending
+**Session 2 (February 18, 2026):**
+- Strategic pivot: asset-first, corridor-first, componentized costing
+- PADD 3 focus established, Colonial GC→ATL as first POC corridor
+- Claude project structure redesigned for context efficiency
+- SC Core trimmed to 4 files; PADD3 POC project to be created
+- NewTide.ai RisingTide exportability established as strategic driver
 
-### Cumulative Project Metrics
-- **Total Tables:** 53
-- **Total Views:** 6
-- **Total Indexes:** 32
-- **Code Lines:** ~2,300
-- **Documentation Pages:** 10+ comprehensive guides
-- **Time Invested:** ~16 hours
-- **Value Created:** Production-ready multi-tenant costing architecture
-
----
-
-## 🎯 PROJECT ROADMAP - UPDATED
-
-### Week 1 (Feb 10-14) - Foundation ✅ + Migration ⏳
-- [x] Day 1: Initial schema + 227 terminals imported
-- [x] Day 2: Schema redesign to 53 tables
-- [ ] Day 3: Migrate 681 costs to normalized structure
-- [ ] Day 4: Build costing_to_shipping_agent
-- [ ] Day 5: Validate data integrity
-
-### Week 2 (Feb 17-21) - Discovery Agents
-- [ ] Build pipeline_tariff_agent
-- [ ] Build refinery_discovery_agent
-- [ ] Build spot_index_discovery_agent
-- [ ] Populate pipeline_tariffs table
-- [ ] Link terminals to pipelines
-
-### Week 3 (Feb 24-28) - Shipping & BCS
-- [ ] Build shipping_to_bcs_agent
-- [ ] Test BCS generation
-- [ ] Validate combined adders match Excel
-- [ ] Build first tenant alias mappings
-
-### Month 2 (March) - Automation & Scale
-- [ ] Automate daily tariff checks
-- [ ] Automate weekly costing updates
-- [ ] Scale to 300+ terminals
-- [ ] Build quality assurance dashboards
-
-### Month 3 (April) - Production Ready
-- [ ] 400+ terminals mapped
-- [ ] 85%+ automation achieved
-- [ ] Multi-tenant fully operational
-- [ ] <15 hours/week human oversight
+**Session 3 (February 26, 2026):**
+- Claude Code integrated into stack architecture as primary build tool
+- Asset agent pipeline designed: Capture → Validate → Enrich (3-stage, staging-table pattern)
+- Identified design flaw in terminal_discovery_agent.py: direct production writes, no staging, no web_search tool, non-UUID IDs
+- Confirmed schema is ~52 tables (not 16 as previously documented) — componentized costing tables already exist
+- Updated config.py: model string corrected to claude-sonnet-4-6
+- SC Core Claude Stack Architecture deck updated (2-slide visual with Claude Code deep dive)
+- Ready to begin Claude Code first session: asset capture agent build
 
 ---
 
-## 🏆 ACHIEVEMENTS UNLOCKED
-
-### Day 1 Achievements
-- ✅ Initial database structure
-- ✅ 227 terminals imported
-- ✅ GitHub configured
-- ✅ Complete documentation suite
-
-### Day 2 Achievements - TODAY
-- ✅ **Comprehensive gap analysis** completed
-- ✅ **53-table normalized schema** designed and built
-- ✅ **Multi-tenant architecture** implemented
-- ✅ **Reference data seeded** (products, line items, etc.)
-- ✅ **Production parity** achieved (matches PostgreSQL design)
-- ✅ **Zero FK violations** - all relationships valid
-- ✅ **Performance optimized** with 32 indexes
-
-**This is a MAJOR milestone!** We now have a database structure that properly models the entire costing methodology from the ground up, with the flexibility to support multiple tenants and the granularity to track every cost component.
-
----
-
-## 📚 REFERENCE DOCUMENTATION
-
-**Updated Today:**
-- ✅ PROJECT_STATE.md (this file) - Complete schema evolution
-- ⏳ DEVELOPMENT_GUIDE.md - Needs update for 53-table patterns
-- ⏳ README.md - Needs update to reflect new schema
-
-**Still Current:**
-- ✅ BEGINNERS_GUIDE.md - User-facing guide
-- ✅ HOW_TO_PRESERVE_AND_ITERATE.md - Maintenance guide
-- ✅ NEW_SESSION_TEMPLATE.md - Claude session starter
-
-**To Create:**
-- ⏳ ER_DIAGRAM.md - Visual schema reference
-- ⏳ COSTING_METHODOLOGY.md - Detailed costing workflow
-- ⏳ MULTI_TENANT_GUIDE.md - Alias framework explanation
-
----
-
-## 🎓 KEY LESSONS LEARNED
-
-### What Worked
-✅ **Comprehensive gap analysis BEFORE building**
-- Studying 4 SQL files revealed complete data model
-- Reading process docs clarified business logic
-- Understanding the "why" prevented re-work
-
-✅ **Starting fresh with proper design**
-- Multi-tenant from day one
-- Normalized structure prevents future refactoring
-- Production parity gives confidence
-
-✅ **Seed data for reference tables**
-- Products, line items pre-loaded
-- Agents can focus on transactional data
-- Consistency guaranteed
-
-### What Didn't Work
-❌ **Initial 16-table schema was too simple**
-- Flat structure couldn't capture methodology
-- Missing key concepts (periods, line items, etc.)
-- Would have required major refactoring later
-
-### What's Next
-📖 **Document the new schema thoroughly**
-📖 **Build migration tools for existing data**
-📖 **Update all agent code for normalized structure**
-
----
-
-## 🔮 NEXT SESSION PRIORITIES
-
-**Top 3 Focus Areas:**
-
-1. **Data Migration** - Parse 681 transportation_costs into normalized costing
-2. **Agent Updates** - Modify excel_import_agent for new schema
-3. **Documentation** - Update DEVELOPMENT_GUIDE and README
-
-**Success Criteria:**
-- [ ] All 681 cost records migrated to costing table
-- [ ] shipping_line_items generated correctly
-- [ ] Combined adders match Excel source within $0.001/gal
-- [ ] Documentation reflects new 53-table schema
-
----
-
-## 📞 GETTING HELP
-
-**To Resume Work:**
-1. Upload this PROJECT_STATE.md to Claude
-2. Upload the new create_database.py
-3. Say: "I'm ready to migrate the 681 transportation costs to the normalized schema"
-
-**Context Preserved:**
-- Complete schema evolution documented
-- Gap analysis rationale captured
-- Next steps clearly defined
-- All reference documentation linked
-
----
-
-*Last updated: February 11, 2026, 9:30 AM*  
-*Major schema redesign complete - 53 tables with production parity achieved!*  
-*Next: Migrate existing data to normalized structure*
+*Last updated: February 26, 2026*
+*Keep this file current - it's your project's memory!*

@@ -25,8 +25,9 @@ against simplified SQLite implementation. Includes:
   SHIPPING (2 tables)
   - shipping_periods, shipping_line_items
 
-  SPOT MARKET (3 tables)
-  - spot_markets, index_components, spot_indices
+  SPOT MARKET (4 tables)
+  - spot_markets, spot_market_location_links,
+    index_components, spot_indices
 
   BUYING COST SHEETS (5 tables)
   - bcs_types, bcs_period_statuses, bcs, bcs_periods, bcs_line_items
@@ -47,7 +48,10 @@ against simplified SQLite implementation. Includes:
   ETL TRACKING (2 tables)
   - batches, shipping_tracking
 
-Total: ~52 tables, 5+ views, seed data
+  ASSET CAPTURE STAGING (1 table)
+  - terminal_capture_staging  ← buffer for all asset capture agents
+
+Total: 54 tables, 6 views, seed data
 """
 
 import sqlite3
@@ -853,15 +857,17 @@ def create_complete_database(db_path='supply_chain.db'):
     print("  ✓ agent_tasks")
 
     # 43. Data Quality Log
+    # IMPORTANT: Column names must match what agents INSERT — do not rename without
+    # updating terminal_discovery_agent.py and any future asset agents.
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS data_quality_log (
         log_id TEXT PRIMARY KEY,
-        table_name TEXT NOT NULL,
+        record_type TEXT NOT NULL,
         record_id TEXT,
-        quality_check_type TEXT,
-        quality_score REAL,
-        issues_found TEXT,
-        checked_by TEXT,
+        quality_check TEXT,
+        check_result TEXT,
+        check_details TEXT,
+        agent_name TEXT,
         checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     """)
@@ -940,6 +946,53 @@ def create_complete_database(db_path='supply_chain.db'):
         )
         """)
         print(f"  ✓ {table_name}")
+
+    # ========================================================================
+    # ASSET CAPTURE STAGING TABLE
+    # ========================================================================
+
+    print("\n--- ASSET CAPTURE STAGING ---")
+
+    # terminal_capture_staging — buffer for all asset capture agents.
+    # New agents MUST write here first. Promotion to terminals table happens
+    # only after validation agent approves the record (confidence >= 0.85).
+    # Never write unvalidated captures directly to the terminals table.
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS terminal_capture_staging (
+        staging_id TEXT PRIMARY KEY,
+        capture_source TEXT NOT NULL,
+        raw_tcn TEXT,
+        raw_name TEXT,
+        raw_city TEXT,
+        raw_state TEXT,
+        raw_county TEXT,
+        raw_operator TEXT,
+        raw_owner TEXT,
+        raw_address TEXT,
+        raw_data TEXT,
+        capture_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        confidence_score REAL,
+        conflict_flags TEXT,
+        status TEXT DEFAULT 'pending',
+        merged_terminal_id TEXT,
+        reviewed_by TEXT,
+        reviewed_at TIMESTAMP,
+        batch_id TEXT,
+        FOREIGN KEY (merged_terminal_id) REFERENCES terminals(terminal_id)
+    )
+    """)
+    print("  ✓ terminal_capture_staging")
+
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_staging_status ON terminal_capture_staging(status)
+    """)
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_staging_tcn ON terminal_capture_staging(raw_tcn)
+    """)
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_staging_source ON terminal_capture_staging(capture_source)
+    """)
+    print("  ✓ staging indexes created")
 
     # ========================================================================
     # ETL TRACKING TABLES
@@ -1322,9 +1375,9 @@ def create_complete_database(db_path='supply_chain.db'):
     print("    Linkage:          5 tables (paths, terminal-pipeline links, etc.)")
     print("    Costing:          7 tables (tariffs, rates, costing, etc.)")
     print("    Shipping:         2 tables (periods, line items)")
-    print("    Spot Market:      4 tables (markets, indices, components)")
+    print("    Spot Market:      4 tables (markets, location links, indices, components)")
     print("    BCS:              5 tables (buying cost sheets)")
-    print("    Alias/Tenant:     7 tables (aliases for multi-tenant)")
+    print("    Alias/Tenant:     6 tables (aliases for multi-tenant)")
     print("    Management:       5 tables (tasks, quality, metrics)")
     print("    Error Tracking:   5 tables (alias errors)")
     print("    ETL:              2 tables (batches, shipping tracking)")

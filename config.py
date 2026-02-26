@@ -41,11 +41,30 @@ OUTPUT_DIR = os.path.join(PROJECT_ROOT, "outputs")
 # =============================================================================
 
 # Claude API
-CLAUDE_MODEL = "claude-sonnet-4-20250514"
+CLAUDE_MODEL = "claude-sonnet-4-6"
 DEFAULT_MAX_TOKENS = 8000
 
 # =============================================================================
-# AGENT SETTINGS
+# ASSET AGENT SETTINGS (Claude Code build — February 2026)
+# =============================================================================
+
+# Staging table for all asset capture agents
+# IMPORTANT: New agents MUST write here first — never directly to terminals
+ASSET_STAGING_TABLE = "terminal_capture_staging"
+
+# Confidence threshold below which records go to human review queue
+STAGING_REVIEW_THRESHOLD = 0.85
+
+# Capture sources (in priority order for conflict resolution)
+CAPTURE_SOURCES = ['IRS_510', 'EIA', 'FERC', 'EPA_RMP', 'MANUAL']
+
+# Claude Code design constraints (enforced in all new agents):
+# 1. Write to ASSET_STAGING_TABLE, not terminals table directly
+# 2. Use uuid.uuid4() for all primary keys (not legacy ST#### format)
+# 3. Pass web_search tool explicitly in any Claude API calls needing live data
+# 4. Propose schema changes before implementing — wait for approval
+# 5. Leverage existing schema tables before creating new ones
+
 # =============================================================================
 
 # Quality thresholds
