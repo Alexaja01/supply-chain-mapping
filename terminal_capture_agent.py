@@ -329,7 +329,13 @@ class TerminalCaptureAgent:
                     return v
             return ""
 
-        tcn      = pick("termno")
+        original_tcn = pick("termno")
+        # Normalize: strip the leading "T-" prefix the IRS uses (T-01-ME-1000)
+        # so the value is as close as possible to the expected pattern.
+        # config.TCN_PATTERN is not changed; the original value is preserved
+        # in the dict and will flow into raw_data via _write_to_staging.
+        tcn = original_tcn[2:] if original_tcn.upper().startswith("T-") else original_tcn
+
         name     = pick("termname")
         addr1    = pick("termaddr1")
         addr2    = pick("termaddr2")
@@ -342,15 +348,16 @@ class TerminalCaptureAgent:
             return None  # skip blank rows
 
         return {
-            "tcn":      tcn,
-            "name":     name,
-            "operator": "",   # not in IRS file — enriched downstream
-            "city":     city,
-            "state":    state,
-            "address":  address,
-            "county":   "",   # not in IRS file
-            "owner":    "",   # not in IRS file
-            "zip":      zip_code,
+            "tcn":          tcn,           # normalized: "01-ME-1000"
+            "original_tcn": original_tcn,  # preserved:  "T-01-ME-1000" → raw_data
+            "name":         name,
+            "operator":     "",            # not in IRS file — enriched downstream
+            "city":         city,
+            "state":        state,
+            "address":      address,
+            "county":       "",            # not in IRS file
+            "owner":        "",            # not in IRS file
+            "zip":          zip_code,
         }
 
     # =========================================================================
